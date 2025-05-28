@@ -19,24 +19,26 @@ jobs:
         ports: ['6379:6379']
         options: --entrypoint redis-server
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
       - name: Setup Ruby
-        uses: actions/setup-ruby@v1
+        uses: ruby/setup-ruby@v1
         with:
           ruby-version: 3.2
-      - uses: borales/actions-yarn@v2.0.0
-        with:
-          cmd: install
-      - name: Build and run tests
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get -yqq install libpq-dev
+          gem uninstall bundler -a -x || true
+          gem install bundler --no-document
+          bundle install --jobs 4 --retry 3
+      
+      - name: Prepare database and run tests
         env:
-          DATABASE_URL: postgres://postgres:@localhost:5432/test
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test
           REDIS_URL: redis://localhost:6379/0
           RAILS_ENV: test
           RAILS_MASTER_KEY: ${{secrets.RAILS_MASTER_KEY}}
         run: |
-          sudo apt-get -yqq install libpq-dev
-          gem install bundler
-          bundle install --jobs 4 --retry 3
-          bundle exec rails:db:prepare
+          bundle exec rails db:prepare
           bundle exec rails test
-          
+                
